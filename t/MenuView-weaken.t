@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2010 Kevin Ryde
 
@@ -41,10 +41,11 @@ if (! $have_display) {
   plan skip_all => "due to no DISPLAY";
 }
 
-plan tests => 6;
+plan tests => 5;
 
-SKIP: { eval 'use Test::NoWarnings; 1'
-          or skip 'Test::NoWarnings not available', 1; }
+use lib 't';
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
 
 MyTestHelpers::glib_gtk_versions();
 

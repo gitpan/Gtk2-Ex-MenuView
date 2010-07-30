@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2008, 2009, 2010 Kevin Ryde
 
@@ -21,16 +21,15 @@
 use 5.008;
 use strict;
 use warnings;
-use Test::More tests => 5;
+use Test::More tests => 4;
 
-BEGIN {
- SKIP: { eval 'use Test::NoWarnings; 1'
-           or skip 'Test::NoWarnings not available', 1; }
-}
+use lib 't';
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
 
 require Gtk2::Ex::MenuView;
 
-my $want_version = 1;
+my $want_version = 2;
 is ($Gtk2::Ex::MenuView::VERSION, $want_version, 'VERSION variable');
 is (Gtk2::Ex::MenuView->VERSION,  $want_version, 'VERSION class method');
 { ok (eval { Gtk2::Ex::MenuView->VERSION($want_version); 1 },

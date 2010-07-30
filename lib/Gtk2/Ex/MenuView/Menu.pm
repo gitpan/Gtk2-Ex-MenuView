@@ -23,7 +23,7 @@ use Gtk2;
 
 # 1.240 for some non-copying in the GValue boxed handling needed so
 # signal_chain_from_overridden in _do_size_request writes its result to the
-# right place.
+# right place.  (Or 1.230 pre-release.)
 #
 # use Glib 1.240;
 
@@ -31,13 +31,16 @@ use Gtk2;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 1;
+our $VERSION = 2;
 
 use Glib::Object::Subclass
   'Gtk2::Menu',
   signals => { map => \&_do_map,
                # size_request => \&_do_size_request,
              };
+
+use constant { _DIRTY_ITEM => 1,
+               _DIRTY_SEPARATOR => 2 };
 
 sub INIT_INSTANCE {
   my ($menu) = @_;
@@ -99,24 +102,16 @@ sub _freshen {
       $len = $model->iter_n_children ($iter);
     }
   }
-  ###   $len
+  ### $len
 
   # This loop allows for new dirtiness caused by a model set_value() in an
   # item update.  Looking at all_dirty each time is probably unnecessary,
-  # only if _do_row_changed() decides to collapse to all_dirty when all rows
-  # are indeed dirty.
+  # only if maybe _do_row_changed() decided to collapse to all_dirty when
+  # all rows are indeed dirty.
   for (;;) {
     my $saw_dirty = 0;
     foreach my $i (0 .. $len-1) {
-      if (delete $menu->{'all_dirty'}) {
-        $menu->{'dirty'} ||= [];
-        @{$menu->{'dirty'}} = ((1) x $len);
-      }
-      if ($menu->{'dirty'}->[$i]) {
-        delete $menu->{'dirty'}->[$i];
-        $saw_dirty = 1;
-        $menuview->_item_update ($menu, $path, $i);
-      }
+      $saw_dirty |= ($menuview->_freshen_item ($menu, $path, $i) || 0);
     }
     if (! $saw_dirty) { last; }
   }

@@ -21,7 +21,8 @@ package MyMakeMakerExtras;
 use strict;
 use warnings;
 
-sub DEBUG () { 0 }
+# uncomment this to run the ### lines
+#use Smart::Comments;
 
 my %my_options;
 
@@ -55,10 +56,7 @@ sub WriteMakefile {
     $my_options{$opt} = delete $opts{$opt};
   }
 
-  if (DEBUG) {
-    require Data::Dumper;
-    print Data::Dumper->new([\%opts],['opts'])->Indent(1)->Useqq(1)->Dump;
-  }
+  ### %opts
   ExtUtils::MakeMaker::WriteMakefile (%opts);
 }
 
@@ -87,7 +85,7 @@ sub _meta_merge_shared_tests {
   }
   if (-e 't/0-Test-YAML-Meta.t') {
     _meta_merge_req_add (_meta_merge_maximum_tests($opts),
-                         'Test::YAML::Meta' => '0.13');
+                         'Test::YAML::Meta' => '0.15');
   }
   if (-e 't/0-META-read.t') {
     if (_min_perl_version_lt ($opts, 5.00307)) {
@@ -99,7 +97,6 @@ sub _meta_merge_shared_tests {
                            'File::Spec' => 0);
     }
     _meta_merge_req_add (_meta_merge_maximum_tests($opts),
-                         'Test::NoWarnings'  => 0,
                          'YAML'              => 0,
                          'YAML::Syck'        => 0,
                          'YAML::Tiny'        => 0,
@@ -145,7 +142,7 @@ sub _min_perl_version_lt {
 
 sub _meta_merge_req_add {
   my $req = shift;
-  if (DEBUG) { local $,=' '; print "MyMakeMakerExtras META_MERGE",@_,"\n"; }
+  ### MyMakeMakerExtras META_MERGE: @_
   while (@_) {
     my $module = shift;
     my $version = shift;
@@ -163,12 +160,8 @@ sub _meta_merge_req_add {
 
 sub postamble {
   my ($makemaker) = @_;
-  if (DEBUG) { print "MyMakeMakerExtras postamble() $makemaker\n"; }
+  ### MyMakeMakerExtras postamble(): $makemaker
 
-  if (DEBUG >= 2) {
-    require Data::Dumper;
-    print Data::Dumper::Dumper($makemaker);
-  }
   my $post = $my_options{'postamble_docs'};
 
   unless ($my_options{'MY_NO_HTML'}) {
@@ -233,7 +226,7 @@ HERE
 
   my $lint_files = $my_options{'MyMakeMakerExtras_LINT_FILES'};
   if (! defined $lint_files) {
-    $lint_files = '$(EXE_FILES) $(TO_INST_PM)';
+    $lint_files = 'Makefile.PL $(EXE_FILES) $(TO_INST_PM)';
     # would prefer not to lock down the 't' dir existance at ./Makefile.PL
     # time, but it's a bit hard without without GNU make extensions
     if (-d 't') { $lint_files .= ' t/*.t'; }
@@ -260,6 +253,7 @@ pc:
 HERE
   # "podchecker -warnings -warnings" too much reporting every < and >
   $post .= $podcoverage . <<'HERE';
+	-podlinkcheck -I lib `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 	-podchecker `ls $(LINT_FILES) | grep -v '\.bash$$|\.desktop$$\.png$$|\.xpm$$'`
 	perlcritic $(LINT_FILES)
 unused:
@@ -282,6 +276,7 @@ check-copyright-years:
 	| sed 's:^.*$(DISTVNAME)/::' \
 	| (result=0; \
 	  while read i; do \
+	    GREP=grep; \
 	    case $$i in \
 	      '' | */ \
 	      | ppport.h \
@@ -290,12 +285,14 @@ check-copyright-years:
 	      | COPYING | MANIFEST* | SIGNATURE | META.yml \
 	      | version.texi | */version.texi \
 	      | *utf16* \
+	      | */Math''Image/ln2.gz | */Math''Image/pi.gz \
 	      | *.mo | *.locatedb | t/samp.*) \
-	      continue ;; \
+	        continue ;; \
+	      *.gz) GREP=zgrep ;; \
 	    esac; \
 	    if test -e "$(srcdir)/$$i"; then f="$(srcdir)/$$i"; \
 	    else f="$$i"; fi; \
-	    if ! grep -q "Copyright.*$$year" $$f; then \
+	    if ! $$GREP -q "Copyright.*$$year" $$f; then \
 	      echo "$$i":"1: this file"; \
 	      grep Copyright $$f; \
 	      result=1; \
@@ -306,11 +303,10 @@ check-copyright-years:
 # only a DEBUG non-zero number is bad, so an expression can copy a debug from
 # another package
 check-debug-constants:
-	if egrep -n 'DEBUG => [1-9]|^[ \t]*use Smart::Comments' $(EXE_FILES) $(TO_INST_PM); then exit 1; else exit 0; fi
+	if egrep -nH 'DEBUG => [1-9]|^[ \t]*use Smart::Comments' $(EXE_FILES) $(TO_INST_PM); then exit 1; else exit 0; fi
 
 check-spelling:
-	if egrep -nHi 'continous|existant|explict|agument|destionation|\bthe the\b|\bnote sure\b' -r . \
-	  | egrep -v '(MyMakeMakerExtras|Makefile|dist-deb).*grep -nH'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[n]ote sure\b'; \
 	then false; else true; fi
 
 diff-prev:
@@ -362,7 +358,7 @@ DEBFILE = $(DEBVNAME)_$(DPKG_ARCH).deb
 # DISPLAY is unset for making a deb since under fakeroot gtk stuff may try
 # to read config files like ~/.pangorc from root's home dir /root/.pangorc,
 # and that dir will be unreadable by ordinary users (normally), provoking
-# warnings and possible failures from Test::NoWarnings.
+# warnings and possible failures from nowarnings().
 #
 $(DEBFILE) deb:
 	test -f $(DISTVNAME).tar.gz || $(MAKE) $(DISTVNAME).tar.gz

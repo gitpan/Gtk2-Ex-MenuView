@@ -24,12 +24,13 @@ use Gtk2 1.200; # for GDK_PRIORITY_REDRAW, and bug fixes probably
 
 use Glib::Ex::SignalIds;
 use Glib::Ex::SourceIds;
+use Glib::Ex::SignalBits;
 use Gtk2::Ex::MenuView::Menu;
 
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 1;
+our $VERSION = 2;
 
 use constant _submenu_class => 'Gtk2::Ex::MenuView::Menu';
 
@@ -53,7 +54,7 @@ use Glib::Object::Subclass
                                       'Gtk2::TreeIter'],
                     return_type   => 'Gtk2::MenuItem',
                     flags         => ['action','run-last'],
-                    accumulator   => \&_accumulator_first_defined,
+                    accumulator   => \&Glib::Ex::SignalBits::accumulator_first_defined,
                   },
                'separator-create-or-update'
                => { param_types   => ['Gtk2::MenuItem',
@@ -62,7 +63,7 @@ use Glib::Object::Subclass
                                       'Gtk2::TreeIter'],
                     return_type   => 'Gtk2::MenuItem',
                     flags         => ['action'],
-                    accumulator   => \&_accumulator_first_defined,
+                    accumulator   => \&Glib::Ex::SignalBits::accumulator_first_defined,
                   },
                activate
                => { param_types => ['Gtk2::MenuItem',
@@ -99,6 +100,8 @@ use Glib::Object::Subclass
 
 # TODO:
 #
+# dirty 0, 1=item, 2=separator
+#
 # current_item_at_indices ...
 # $menu->get_model_items
 # $menu->model_items_array
@@ -111,7 +114,6 @@ use Glib::Object::Subclass
 # mnemonics
 # accel key from model example
 # circular protection pay attention to model changes ?
-
 
 #------------------------------------------------------------------------------
 
@@ -144,10 +146,34 @@ sub SET_PROPERTY {
   }
 }
 
-sub _item_update {
+sub _freshen_item {
   my ($self, $menu, $menu_path, $i) = @_;
-  ### _item_update: $i
-  my $model = $self->{'model'} || return undef;
+  ### _freshen_item() number: $i
+  my $model = $self->{'model'} || return;
+
+  if (delete $menu->{'all_dirty'}) {
+    ### all_dirty, make dirty array
+    my $menu_iter = ($menu_path->get_depth
+                     ? $model->get_iter($menu_path) || do {
+                       ###   no iter for menu_path
+                       return;
+                     }
+                     : undef);
+    my $len = $model->iter_n_children ($menu_iter);
+    $menu->{'dirty'} ||= [];
+    @{$menu->{'dirty'}} = ((Gtk2::Ex::MenuView::Menu::_DIRTY_ITEM()
+                            | Gtk2::Ex::MenuView::Menu::_DIRTY_SEPARATOR())
+                           x $len);
+  }
+
+  ### dirty_bits: $menu->{'dirty'}->[$i]
+  my $dirty_bits = delete $menu->{'dirty'}->[$i] || do {
+    ### not dirty, no freshen needed
+    return;
+  };
+  # still dirty if recursive freshens such as item_at_indices() look, but
+  # cleared when this _freshen_item() returns
+  local $menu->{'dirty'}->[$i] = $dirty_bits;
 
   my $item_path = $menu_path->copy;
   $item_path->append_index ($i);
@@ -157,49 +183,57 @@ sub _item_update {
     return;
   };
 
-  my $in_progress = $self->{'item_update_in_progress'} || {};
   my $key = $item_path->to_string;
+  ### in progress: $self->{'item_update_in_progress'}
+  my $in_progress = $self->{'item_update_in_progress'} || {};
   if ($in_progress->{$key}) {
+    ### croak for recursion
     croak "Recursive item create or update for path=$key";
   }
   local $self->{'item_update_in_progress'} = { %$in_progress, $key => 1 };
+  ### flag in_progress to: $self->{'item_update_in_progress'}
 
   my $children = ($menu->{'children'} ||= []);
-  my $old_item = $children->[$i];
-
+  my $item = $children->[$i];
   my $leaf = ! $model->iter_has_child ($item_iter);
-  my $item = $self->signal_emit ('item-create-or-update',
-                                 $old_item,
-                                 $model,
-                                 $item_path,
-                                 $item_iter);
-  ### _item_create: $item
 
   my ($old_separator, $submenu);
-  if ($old_item) {
-    $old_separator = $old_item->{'Gtk2::Ex::MenuView.separator'};
-    $submenu = $old_item->get_submenu;
+  if ($item) {
+    $old_separator = $item->{'Gtk2::Ex::MenuView.separator'};
+    $submenu = $item->get_submenu;
   }
-  unless ($item && $old_item && $item == $old_item) {
-    if ($old_item) {
-      $menu->_remove_item ($old_item);
-      delete $children->[$i]; # so _item_index_to_menu_pos() doesn't see it
-      undef $old_separator;   # destroyed by _remove_item()
-    }
-    if ($item) {
-      if ((my $want_activate = $self->get('want-activate')) ne 'no') {
-        # Connect to both leaf and non-leaf rows and filter in the handler,
-        # since a row might gain or lose a submenu at any time.  There won't
-        # be many non-leafs so not much is wasted by this.
-        $item->signal_connect (activate => \&_do_item_activate);
+
+  if ($dirty_bits & Gtk2::Ex::MenuView::Menu::_DIRTY_ITEM()) {
+    my $old_item = $item;
+    $item = $self->signal_emit ('item-create-or-update',
+                                $old_item,
+                                $model,
+                                $item_path,
+                                $item_iter);
+    ### _item_create: $item
+
+    unless ($item && $old_item && $item == $old_item) {
+      if ($old_item) {
+        $menu->_remove_item ($old_item);
+        delete $children->[$i]; # so _item_index_to_menu_pos() doesn't see it
+        undef $old_separator;   # destroyed by _remove_item()
       }
-      if ((my $want_visible = $self->get('want-visible')) ne 'no') {
-        $item->$want_visible; # 'show' or 'show_all'
+      if ($item) {
+        if ((my $want_activate = $self->get('want-activate')) ne 'no') {
+          # Connect to both leaf and non-leaf rows and filter in the handler,
+          # since a row might gain or lose a submenu at any time.  There won't
+          # be many non-leafs so not much is wasted by this.
+          $item->signal_connect (activate => \&_do_item_activate);
+        }
+        if ((my $want_visible = $self->get('want-visible')) ne 'no') {
+          $item->$want_visible; # 'show' or 'show_all'
+        }
+        $menu->insert ($item, _item_index_to_menu_pos($menu,$i));
+        $children->[$i] = $item;
       }
-      $menu->insert ($item, _item_index_to_menu_pos($menu,$i));
-      $children->[$i] = $item;
     }
   }
+
   if ($item) {
     if ($leaf) {
       undef $submenu;
@@ -213,7 +247,8 @@ sub _item_update {
     $item->set_submenu ($submenu);
   }
 
-  if ($item) {
+  if ($item
+      && ($dirty_bits & Gtk2::Ex::MenuView::Menu::_DIRTY_SEPARATOR())) {
     my $item_iter = $model->get_iter($item_path) || return;
     my $separator = $self->signal_emit ('separator-create-or-update',
                                         $old_separator,
@@ -226,13 +261,17 @@ sub _item_update {
         $old_separator->destroy;
       }
       if ($separator) {
-        $menu->insert ($separator, _item_index_to_menu_pos ($menu, $i));
+        my $pos = _item_index_to_menu_pos ($menu, $i);
         $item->{'Gtk2::Ex::MenuView.separator'} = $separator;
+        $menu->insert ($separator, $pos);
       } else {
         delete $item->{'Gtk2::Ex::MenuView.separator'};
       }
     }
   }
+
+  ### freshen return 1
+  return 1;
 }
 
 # 'activate' signal handler on each item child
@@ -346,33 +385,32 @@ sub _dirty_menu {
 }
 
 # mark $menu item number $i as dirty
-sub _dirty_item {
-  my ($self, $menu, $i) = @_;
-  ### _dirty_item: $i, "$menu"
+sub _dirty_add {
+  my ($self, $menu, $i, $dirty_bits) = @_;
+  ### _dirty_add(): $i, "$menu", $dirty_bits
 
   if (! $menu->{'all_dirty'}) {
     my $dirty = ($menu->{'dirty'} ||= []);
-    $dirty->[$i] ||= do {
+    $dirty->[$i] |= do {
       _idle_freshen ($self);
-      1;
+      $dirty_bits;  # item
     };
   }
-}
-sub _dirty_separator {
-  my ($self, $menu, $i) = @_;
 }
 
 sub _dirty_item_and_following_separator {
   my ($self, $menu, $path) = @_;
 
   my $i = ($path->get_indices)[-1];
-  _dirty_item ($self, $menu, $i);
+  _dirty_add ($self, $menu, $i,
+              Gtk2::Ex::MenuView::Menu::_DIRTY_ITEM());
 
   if (my $model = $self->{'model'}) {
     $path = $path->copy;
     $path->next;
     if ($model->get_iter($path)) {
-      _dirty_separator ($self, $menu, $i+1);
+      _dirty_add ($self, $menu, $i+1,
+                  Gtk2::Ex::MenuView::Menu::_DIRTY_SEPARATOR());
     }
   }
 }
@@ -431,7 +469,8 @@ sub _do_row_has_child_toggled {
   }
   # update display for rows or no-rows and create submenu if became
   # non-empty
-  _dirty_item ($self, $item->get_parent, ($path->get_indices)[-1]);
+  _dirty_add ($self, $item->get_parent, ($path->get_indices)[-1],
+              Gtk2::Ex::MenuView::Menu::_DIRTY_ITEM());
 }
 
 # 'row-changed' callback from model
@@ -466,7 +505,8 @@ sub _do_row_deleted {
 
   # update following row for its separator, if there's a following row
   if ($model->get_iter($path)) {
-    _dirty_separator ($self, $menu, $i);
+    _dirty_add ($self, $menu, $i,
+                Gtk2::Ex::MenuView::Menu::_DIRTY_SEPARATOR());
   }
 }
 
@@ -532,6 +572,7 @@ sub item_at_path {
 
 sub item_at_indices {
   my $self = shift;
+  ### item_at_indices(): @_
   $self->{'model'} || return undef;
 
   my $menu = $self;
@@ -539,7 +580,7 @@ sub item_at_indices {
   my $item;
   while (@_) {
     my $i = shift;
-    _item_update ($self, $menu, $menu_path, $i);
+    $self->_freshen_item ($menu, $menu_path, $i);
     (($item = $menu->{'children'}->[$i])
      && ($menu = $item->get_submenu))
       or last;
@@ -550,13 +591,9 @@ sub item_at_indices {
 
 #------------------------------------------------------------------------------
 
-sub _accumulator_first_defined {
-  my ($hint, $acc, $ret) = @_;
-  ### _accumulator_first_defined: [$acc,$ret]
-  return (! defined $ret,  # flag, true to continue if $ret is undef
-          $ret);           # retval
-}
-
+# _splice_maybe($aref,$offset,$len, $repl...)
+# A splice() of @$aref, but only if $aref is not undef and $offset is not
+# past its end.
 sub _splice_maybe {
   if (my $aref = shift) {
     if ((my $pos = shift) <= $#$aref) {
@@ -644,9 +681,10 @@ a menu and sub-menus.  The items update with changes in the model.
 
 The menu items are created by an C<item-create-or-update> callback signal
 described below.  It offers flexibility for item class and settings, but
-there's no default, you must connect a handler or nothing is displayed.  The
-code shown in the SYNOPSIS above is typical, creating an item if not already
-created, then updating the item display settings to show the row contents.
+there's no default, so you must connect a handler or nothing is displayed.
+The code shown in the SYNOPSIS above is typical, creating an item if not
+already created, then updating the item display settings to show the row
+contents.
 
 =head1 FUNCTIONS
 
@@ -675,7 +713,7 @@ path is empty, or if C<item-create-or-update> returns C<undef> for no item
 for that row.
 
 C<item_at_indices> is handy on a C<list-only> model to get an item just by
-number(0 for the first row), without going through a C<Gtk2::TreePath>
+number (0 for the first row), without going through a C<Gtk2::TreePath>
 object.  For example,
 
     $item = $menuview->item_at_indices (0);  # first menu item
@@ -690,7 +728,7 @@ object.  For example,
 
 The TreeModel to display.  Until this is set the menu is empty.
 
-The menu is updated to the new model data by C<item-create-or-update> calls,
+The menu is updated to the new model data by C<item-create-or-update> calls
 as necessary.  Any popped-up submenus which don't exist in the new model are
 popped-down, but those existing in both the old and new model remain up.
 
@@ -718,11 +756,11 @@ activation.  The possible values are
 
 The default C<leaf> will suit most applications.  C<all> emits on non-leaf
 nodes too, such as when clicking to pop up a submenu, which isn't really an
-item selection and so not usually of interest.
+item selection and not usually of interest.
 
-Setting C<no> doesn't generate C<activate> signals.  It saves some signal
-connections and lookups if you want different connections on different
-items, or perhaps only care about a few item activations.
+Setting C<no> doesn't emit the C<activate> signal.  This saves some signal
+connections and lookups and can be used if you want different connections on
+different items, or perhaps only care about a few item activations.
 
 Currently this setting only affects newly created items, not existing ones.
 
@@ -764,9 +802,9 @@ They're also done on a "lazy" basis, so items are only created or updated
 when the menu is visible, or its size is requested, etc.
 
 An C<item-create-or-update> handler can call C<< $menuview->item_at_path >>
-to get another row MenuItem.  This results in a recursive
-C<item-create-or-update> if that item isn't already up-to-date.  Of course
-the item of the current update or any higher one in progress cannot be
+etc to get another row item.  This will do a recursive
+C<item-create-or-update> if the item isn't already up-to-date.  Of course
+the item currently updating or any higher one in progress cannot be
 obtained.
 
 An C<item-create-or-update> must not insert, delete or reorder the model
@@ -800,19 +838,19 @@ C<item-create-or-update> call updating C<$item>.  If that callback decides
 to return a brand new item then you'll be left with only the old one (now
 destroyed).
 
-You can connect directly to the individual item C<activate> signals
-(C<signal_connect> in C<item-create-or-update>).  The unified C<activate> is
-good for the common case where most items do the something similar, based on
-the model data.
+You can connect directly to the individual item C<activate> signals (with a
+C<signal_connect> in C<item-create-or-update>).  The unified MenuView
+C<activate> is designed for the common case where most items do something
+similar based on the model data.
 
 An C<activate> handler must not insert, delete or reorder rows in the model,
 since doing so may invalidate the C<$path> and C<$iter>.  Those objects are
-passed to each connected handler without tracking row changes by those
+passed to each connected handler without tracking row changes by the
 handlers.  This restriction doesn't apply to an C<activate> handler on an
-individual item, as it doesn't have path/iter parameters, but only as long
-as the C<activate> won't be emitted by code in an C<item-create-or-update>
-(like C<set_active> on a CheckMenuItem does) which has path and iters in
-use.
+individual item, as it doesn't have path/iter parameters, and as long as the
+item C<activate> won't be emitted by code within an C<item-create-or-update>
+(like C<set_active> on a CheckMenuItem does) and which thus has path and
+iters in use.
 
 =back
 
@@ -842,13 +880,13 @@ line or two of code.  For example,
 
 Usually all items should be made visible and MenuView does that
 automatically by default.  If you want to manage visibility yourself then
-setting C<want-visiblity> to C<no> makes MenuView leave it alone completely,
-or C<show> to just C<< $item->show >> the item itself, not recursing into
-its children.
+set C<want-visiblity> to C<no> to make MenuView leave it alone completely,
+or C<show> to have MenuView just C<< $item->show >> the item itself, not
+recursing into its children.
 
 An invisible item or a return of C<undef> from C<item-create-or-update> both
 result in nothing displayed.  If items are slow to create you might keep
-them in the menu but invisible when unwanted (trading memory used against
+them in the menu but invisible when unwanted (trading memory against
 slowness of creation).  Visibility could be controlled from something
 external too.
 
@@ -859,14 +897,14 @@ according to row data, or link it up to something external, etc.
 
 =head2 Check Items
 
-One use for C<Gtk2::CheckMenuItem> is to have the C<active> property display
-and control a column in the model.  In C<item-create-or-update> do
+One use for a C<Gtk2::CheckMenuItem> is to have the C<active> property
+display and control a column in the model.  In C<item-create-or-update> do
 C<< $item->set_active >> to make the item show the model data, then in the
 C<activate> signal handler do C<< $model->set >> to put the item's new
 C<active> state into the model.  See F<examples/checkitem.pl> in the sources
 for a complete sample program.
 
-The C<< $model->set >> under C<activate> will cause MenuView to call
+C<< $model->set >> under C<activate> will cause MenuView to call
 C<item-create-or-update> again because the model row has changed, and
 C<< $item->set_active >> there may emit the C<activate> signal again.  This
 would be an endless recursion except that C<set_activate> notices when the
@@ -909,9 +947,9 @@ submenu widget, etc.
 =head2 CellView Items
 
 C<Gtk2::ComboBox> displays its model-based menus using a C<Gtk2::CellView>
-child in each item, with C<Gtk2::CellRenderer> objects for the drawing.
-Alas it doesn't make this available for general use (only with the selector
-box, launching from there).  You can make a similar thing with MenuView by
+child in each item with C<Gtk2::CellRenderer> objects for the drawing.  Alas
+it doesn't make this available for general use (only with the selector box,
+launching from there).  You can make a similar thing with MenuView by
 creating items with a CellView child each.
 
 The only thing to note is that as of Gtk 2.20 a CellView doesn't
@@ -923,7 +961,7 @@ See F<examples/cellview.pl> in the sources for a complete program.
 Often a single CellRenderer can be shared among all the items created.
 Drawing is done one cell at a time so different attribute values applied for
 different rows don't clash, as long as every CellView sets all attributes
-which matter.  (Is this a documented feature though?)
+which matter.  (Is that a documented CellView feature though?)
 
 =head2 Buildable
 
@@ -938,8 +976,8 @@ so for example
       <signal name="activate" handler="my_activate"/>
     </object>
 
-Like a plain C<Gtk2::Menu>, in the builder a MenuView will be a top-level
-object and then either connected up as the submenu of a menuitem somewhere
+Like a plain C<Gtk2::Menu>, a MenuView will be a top-level object in the
+builder and then either connected up as the submenu of a menuitem somewhere
 (in another menu or menubar), or just created ready to be popped up
 explicitly by event handler code.  See F<examples/builder.pl> in the sources
 for a complete program.
@@ -965,12 +1003,12 @@ MenuView is intended for up to perhaps a few hundred items.  Each item is a
 separate C<Gtk2::MenuItem>, usually with a child widget to draw, so it's not
 particularly memory-efficient.  You probably won't want to create huge menus
 anyway since as of Gtk 2.12 the user scrolling in a menu bigger than the
-screen is fairly poor.  (You have to wait while it scrolls, and if you've
-got a slow X server it gets badly bogged down by its own drawing.)
+screen is poor.  (You have to wait while it scrolls, and if you've got a
+slow X server it gets badly bogged down by its own drawing.)
 
 =head1 FUTURE
 
-If mostly works to C<< $menu->prepend >> extra fixed items for the menu (see
+It mostly works to C<< $menu->prepend >> extra fixed items for the menu (see
 L<Gtk2::Menu>), not controlled from model rows.  For example a
 C<Gtk2::TearoffMenuItem> or equivalent of some other class.  There's nothing
 yet to do that in sub-menus though.

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright 2008, 2009, 2010 Kevin Ryde
 
@@ -28,27 +28,23 @@ use Test::More;
 BEGIN {
   require Gtk2;
   Gtk2->disable_setlocale;  # leave LC_NUMERIC alone for version nums
-  my $have_display = Gtk2->init_check;
-  if (! $have_display) {
-    plan skip_all => "due to no DISPLAY";
-  }
+  Gtk2->init_check
+    or plan skip_all => "due to no DISPLAY";
 
-  plan tests => 33;
-
- SKIP: { eval 'use Test::NoWarnings; 1'
-           or skip 'Test::NoWarnings not available', 1; }
+  plan tests => 34;
 }
 
-require Gtk2::Ex::MenuView;
-
 use lib 't';
-require MyTestHelpers;
+use MyTestHelpers;
+BEGIN { MyTestHelpers::nowarnings() }
+
+require Gtk2::Ex::MenuView;
 
 #-----------------------------------------------------------------------------
 # instance VERSION
 
 {
-  my $want_version = 1;
+  my $want_version = 2;
   my $menuview = Gtk2::Ex::MenuView->new;
   is ($menuview->VERSION,  $want_version, 'VERSION instance method');
   ok (eval { $menuview->VERSION($want_version); 1 },
@@ -255,7 +251,8 @@ require MyTestHelpers;
   $menuview->signal_connect
     (item_create_or_update => sub {
        my ($menuview, $item, $model, $path, $iter) = @_;
-       if ($recursing) {
+       diag "item_create_or_update of ",$path->to_string;
+       if ($recursing++ > 5) {
          return undef;
        }
        if (! eval { $menuview->item_at_indices(0); 1 }) {
@@ -264,7 +261,9 @@ require MyTestHelpers;
        return ($item || Gtk2::MenuItem->new_with_label ($path->to_string));
      });
 
-  $menuview->item_at_indices(0);
+  my $item = $menuview->item_at_indices(0);
+  isa_ok ($item, 'Gtk2::MenuItem');
+  isnt ($err, undef, 'bad recurse - expect error');
   like ($err, qr/Recursive item create or update/,
         'bad recurse - error message');
 }

@@ -40,6 +40,7 @@ MyMakeMakerExtras::WriteMakefile
                     # my Glib-Ex-ObjectBits
                     'Glib::Ex::SignalIds' => 0,
                     'Glib::Ex::SourceIds' => 0,
+                    'Glib::Ex::SignalBits' => 9, # new in v.9
                    },
 
    META_MERGE
