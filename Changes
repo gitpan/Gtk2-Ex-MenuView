@@ -16,6 +16,10 @@ You should have received a copy of the GNU General Public License along
 with Gtk2-Ex-MenuView.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+Version 3, September 2010
+    - test manifest only as an author test
+
 Version 2, July 2010
     - use Glib::Ex::SignalBits
 

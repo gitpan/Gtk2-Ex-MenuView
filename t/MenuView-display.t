@@ -44,7 +44,7 @@ require Gtk2::Ex::MenuView;
 # instance VERSION
 
 {
-  my $want_version = 2;
+  my $want_version = 3;
   my $menuview = Gtk2::Ex::MenuView->new;
   is ($menuview->VERSION,  $want_version, 'VERSION instance method');
   ok (eval { $menuview->VERSION($want_version); 1 },

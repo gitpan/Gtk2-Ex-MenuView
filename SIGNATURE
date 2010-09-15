@@ -15,16 +15,16 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 842745cb706f8f2126506f544492f7a80dbe29b3 COPYING
-SHA1 b37a987b117874d38898bccfbea40015b5bf9f52 Changes
-SHA1 b75aeb21c58fd2af31085a14d05ea1957f4983ad MANIFEST
-SHA1 9f057ed3ba7d042426c4d899f7685b4ae05076b2 MANIFEST.SKIP
-SHA1 b2f46307f65ff022b3ce3eaf291deed26aff2ace META.yml
+SHA1 c3b37320a16fa161bc4747dc7d1cef1206f7b56d Changes
+SHA1 a5a667f9625d334b568e4bccfb5f933a5826bcbc MANIFEST
+SHA1 e6e7c2904ea5d300c0ddf70fc5a80f5005229aa9 MANIFEST.SKIP
+SHA1 4b22a71e01210294e59d10ce3ff3d8451228b21c META.yml
 SHA1 074dd55d4d415277f613754baaad39dbcb704fa7 Makefile.PL
 SHA1 c84ba5b0545316de9d924ed6220fa3fa04eb0efd README
-SHA1 28d4629d113209176eba366b0b8ed32cbe5be815 debian/changelog
+SHA1 5e94e6f4be5f9d1feae3f7cd54b4b6e1bb80d4aa debian/changelog
 SHA1 ac3478d69a3c81fa62e60f5c3696165a4e5e6ac4 debian/compat
 SHA1 a78e02a372644f29035c6c19354f4e64c586304f debian/control
-SHA1 14b2db853ba6c2eeaad5bf570ac0b517e401abcb debian/copyright
+SHA1 10d9ca6f587ad6a17a521450a86033c6c13d25a1 debian/copyright
 SHA1 a283e3ae19c01b8cc586e6db1237a31f132f97f3 debian/rules
 SHA1 61652cd1568dcf2614df833eba241755eee34e89 debian/source/format
 SHA1 219ccd52d6ccfb41ff62be997b3147aa9f2c72fb debian/watch
@@ -47,23 +47,23 @@ SHA1 8f73a2fb445b8211d03710e380633c667a008975 examples/checkitem.pl
 SHA1 aedb20fc40148d813eb1b4c51f851e6da69c3cc8 examples/radiogroup.pl
 SHA1 86bc377cdea0b4769bde2427706fa428fb7669fa examples/simple.pl
 SHA1 51ea77276378febe7f581ee0fdb710dee960f254 examples/twiddle.pl
-SHA1 83dc7aff5595e0efd1eab14964b536fc0aaff291 inc/MyMakeMakerExtras.pm
+SHA1 3cf3345a9177dbe362dfc8fbf192272f4a611ca8 inc/MyMakeMakerExtras.pm
 SHA1 692a1ddc2ca6b98cac7b48ea40bc1ac1509e8ed9 inc/my_pod2html
-SHA1 d09ea133982edac78a4264b413760eccf441a6fe lib/Gtk2/Ex/MenuView.pm
-SHA1 8da7265d3b97969c73e4290f572143a162830421 lib/Gtk2/Ex/MenuView/Menu.pm
-SHA1 9127f78a0dfa04976acbb979dd7862ef59a74c58 t/0-META-read.t
-SHA1 37abd43b41068804ea4bb099fdd89af21be82926 t/0-Test-DistManifest.t
-SHA1 8f93fb4c8f0424a4442cc93c9a2e86342ef55281 t/0-Test-Pod.t
-SHA1 1de8f07883f6bf1a2ef79f2cb8adf1deb3f61cee t/0-Test-Synopsis.t
-SHA1 fb517c2fae5ddac559318bf6a224949115ea3129 t/0-Test-YAML-Meta.t
-SHA1 ae3667bd86a4bab87a86434ae1edd42e47f7bb03 t/MenuView-display.t
+SHA1 679a0225a9f5980850431d1a226eaf056e9dda00 lib/Gtk2/Ex/MenuView.pm
+SHA1 dbbd2f507526652fde0daf19e22b3e6a2209c9a3 lib/Gtk2/Ex/MenuView/Menu.pm
+SHA1 c9799f4c1a73e19bd28b11db07b7932f4e682f15 t/MenuView-display.t
 SHA1 41a8d6a9ee55694a8f9072d8f0156b95a70af397 t/MenuView-weaken.t
-SHA1 58fb4131a5b71ae0d9067406a55039a3a6c39abf t/MenuView.t
-SHA1 f3bc1eb4ccf4844e7d352ca88452d854c3e6b437 t/MyTestHelpers.pm
+SHA1 62777fd1d41e2e41faf41b2326f0caba3fda1b9d t/MenuView.t
+SHA1 cc9d34bca6c40211dd6aa8fee844bb1a7f908461 t/MyTestHelpers.pm
+SHA1 9127f78a0dfa04976acbb979dd7862ef59a74c58 xt/0-META-read.t
+SHA1 37abd43b41068804ea4bb099fdd89af21be82926 xt/0-Test-DistManifest.t
+SHA1 8f93fb4c8f0424a4442cc93c9a2e86342ef55281 xt/0-Test-Pod.t
+SHA1 1de8f07883f6bf1a2ef79f2cb8adf1deb3f61cee xt/0-Test-Synopsis.t
+SHA1 fb517c2fae5ddac559318bf6a224949115ea3129 xt/0-Test-YAML-Meta.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.10 (GNU/Linux)
 
-iD8DBQFMU1DlLFMCIV9q3ToRAhgkAKCMdCNDnWeQZHbyE44Wsz/67l1UFwCffkLx
-cMUBP7EmvsBAcKmBTYQQFSE=
-=VNdy
+iD8DBQFMkUU0LFMCIV9q3ToRApLnAJ49fYlvRa+xi5/Jatf30SGYVwXcewCffNSv
+LQD3q67cvesCuBKVGel54Y0=
+=fi1y
 -----END PGP SIGNATURE-----

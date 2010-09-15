@@ -30,7 +30,7 @@ use Gtk2::Ex::MenuView::Menu;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 2;
+our $VERSION = 3;
 
 use constant _submenu_class => 'Gtk2::Ex::MenuView::Menu';
 
@@ -744,6 +744,10 @@ The default C<show_all> makes each item and all its child widgets visible.
 This is usually what you want to see it on the screen.  C<show> or C<no>
 allow items or some of their child parts to be invisible at times.  See
 L</Item Visibility> below for further notes.
+
+(The enum value is C<show_all> with an underscore.  It corresponds to the
+method name and C function name, though it's unlike other enum nicks which
+use hyphens.)
 
 =item C<want-activate> (C<Gtk2::Ex::MenuView::WantActivate> enum, default 'leaf')
 
