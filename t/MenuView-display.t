@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 # This file is part of Gtk2-Ex-MenuView.
 #
@@ -31,7 +31,7 @@ BEGIN {
   Gtk2->init_check
     or plan skip_all => "due to no DISPLAY";
 
-  plan tests => 34;
+  plan tests => 114;
 }
 
 use lib 't';
@@ -44,7 +44,7 @@ require Gtk2::Ex::MenuView;
 # instance VERSION
 
 {
-  my $want_version = 3;
+  my $want_version = 4;
   my $menuview = Gtk2::Ex::MenuView->new;
   is ($menuview->VERSION,  $want_version, 'VERSION instance method');
   ok (eval { $menuview->VERSION($want_version); 1 },
@@ -52,6 +52,47 @@ require Gtk2::Ex::MenuView;
   my $check_version = $want_version + 1000;
   ok (! eval { $menuview->VERSION($check_version); 1 },
       "VERSION instance check $check_version");
+}
+
+#------------------------------------------------------------------------------
+# item_get_mmpi
+
+{
+  my $store = Gtk2::TreeStore->new ('Glib::String');
+  $store->set ($store->append(undef), 0 => 'foo');
+  $store->set ($store->append(undef), 0 => 'bar');
+  $store->set ($store->append(undef), 0 => 'quux');
+  $store->set ($store->append($store->iter_nth_child(undef,1)), 0 => 'sub1');
+  $store->set ($store->append($store->iter_nth_child(undef,1)), 0 => 'sub2');
+
+  my $menuview = Gtk2::Ex::MenuView->new (model => $store);
+  $menuview->signal_connect
+    (item_create_or_update => sub {
+       my ($menuview, $item, $model, $path, $iter) = @_;
+       return Gtk2::MenuItem->new_with_label ('foo');
+     });
+
+  foreach my $pathstr ('0', '1', '2', '1:0', '1:1') {
+    foreach my $class_or_menu ($menuview, 'Gtk2::Ex::MenuView') {
+      my $path = Gtk2::TreePath->new_from_string ($pathstr);
+      my $item = $menuview->item_at_path ($path);
+      ok ($item, "item at pathstr=$pathstr path=".$path->to_string);
+      my @ret = $item && $class_or_menu->item_get_mmpi($item);
+      is (scalar(@ret), 4);
+      my ($ret_menuview, $ret_model, $ret_path, $ret_iter) = @ret;
+      is ($ret_menuview, $menuview);
+      is ($ret_model, $store);
+      isa_ok ($ret_path, 'Gtk2::TreePath');
+      is ($ret_path && $ret_path->can('to_string') && $ret_path->to_string,
+          $path->to_string);
+      isa_ok ($ret_iter, 'Gtk2::TreeIter');
+      is (($ret_iter
+           && $ret_iter->isa('Gtk2::TreeIter')
+           && $store->get_path($ret_iter)
+           && $store->get_path($ret_iter)->to_string),
+          $path->to_string);
+    }
+  }
 }
 
 #-----------------------------------------------------------------------------
@@ -298,5 +339,7 @@ require Gtk2::Ex::MenuView;
   ok (! MyTestHelpers::any_signal_connections($liststore),
       'no leftover model signal connections');
 }
+
+
 
 exit 0;

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 # This file is part of Gtk2-Ex-MenuView.
 #
@@ -180,6 +180,15 @@ $right_vbox->pack_start ($treeview, 1,1,0);
             });
      });
   $left_vbox->pack_start ($button, 0,0,0);
+}
+{
+  my $combobox = Gtk2::ComboBox->new_with_model ($treestore);
+  $combobox->set (add_tearoffs => 1);
+  $left_vbox->pack_start ($combobox, 0,0,0);
+  my $renderer = Gtk2::CellRendererText->new;
+  $renderer->set (xalign => 1); # right align
+  $combobox->pack_start ($renderer, 1);
+  $combobox->add_attribute ($renderer, text => 0);
 }
 
 $menuview->popup (undef, undef, undef, undef, 0, 0);

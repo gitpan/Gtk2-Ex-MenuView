@@ -1,4 +1,4 @@
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 # This file is part of Gtk2-Ex-MenuView.
 #
@@ -30,7 +30,7 @@ use Gtk2::Ex::MenuView::Menu;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 3;
+our $VERSION = 4;
 
 use constant _submenu_class => 'Gtk2::Ex::MenuView::Menu';
 
@@ -74,14 +74,14 @@ use Glib::Object::Subclass
              },
   properties => [ Glib::ParamSpec->object
                   ('model',
-                   'model',
+                   'Model',
                    'TreeModel to display.',
                    'Gtk2::TreeModel',
                    Glib::G_PARAM_READWRITE),
 
                   Glib::ParamSpec->enum
                   ('want-activate',
-                   'want-activate',
+                   'Want activate',
                    'Whether to connect and generate a unified activate signal.',
                    'Gtk2::Ex::MenuView::WantActivate',
                    'leaf',
@@ -89,7 +89,7 @@ use Glib::Object::Subclass
 
                   Glib::ParamSpec->enum
                   ('want-visible',
-                   'want-visible',
+                   'Want visible',
                    'Whether to automatically make items visible.',
                    'Gtk2::Ex::MenuView::WantVisible',
                    'show_all',
@@ -279,8 +279,8 @@ sub _do_item_activate {
   my ($item) = @_;
   ### MenuView activate: $item
 
-  # shouldn't normally get a signal out when not within a menu, but allow
-  # for perhaps the model changing without signals yet processed
+  # shouldn't normally get a signal when not within a menu, but allow for
+  # perhaps the model changing without signals yet processed
   my ($menuview,$model,$path,$iter) = Gtk2::Ex::MenuView->item_get_mmpi($item)
     or do {
       ###   no model row for activated item
@@ -720,6 +720,34 @@ object.  For example,
 
 =back
 
+=head2 Item Location
+
+The following can methods are good in an item signal handler for locating
+an item within its MenuView.
+
+=over
+
+=item C<< $path = Gtk2::Ex::MenuView->item_get_path ($item) >>
+
+Return a C<Gtk2::TreePath> which is the location of C<$item> in its
+MenuView.  Return C<undef> if C<$item> has been removed from the menuview
+(eg. if its row was deleted).
+
+The C<$path> object is newly created and can be modified or kept by the
+caller.
+
+=item C<< ($menuview, $model, $path, $iter) = Gtk2::Ex::MenuView->item_get_mmpi ($item) >>
+
+Return a combination menuview, model, path and iter which is the item's
+MenuView and location.  Return no values if C<$item> has been removed from
+the menuview.
+
+C<$path> and C<$iter> are both newly created and can be modified or kept by
+the caller.  C<$model> is the same as C<< $menuview->get('model') >>, but
+returned since it's often wanted for fetching data (using C<$iter>).
+
+=back
+
 =head1 PROPERTIES
 
 =over 4
@@ -764,7 +792,8 @@ item selection and not usually of interest.
 
 Setting C<no> doesn't emit the C<activate> signal.  This saves some signal
 connections and lookups and can be used if you want different connections on
-different items, or perhaps only care about a few item activations.
+different items, or perhaps only care about a few item activations, or have
+a MenuItem subclass with its own activate handler in the class.
 
 Currently this setting only affects newly created items, not existing ones.
 
@@ -1039,7 +1068,7 @@ L<http://user42.tuxfamily.org/gtk2-ex-menuview/index.html>
 
 =head1 LICENSE
 
-Copyright 2008, 2009, 2010 Kevin Ryde
+Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 Gtk2-Ex-MenuView is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by the

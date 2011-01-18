@@ -1,4 +1,4 @@
-# Copyright 2008, 2009, 2010 Kevin Ryde
+# Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 # This file is part of Gtk2-Ex-MenuView.
 #
@@ -31,7 +31,7 @@ use Gtk2;
 # uncomment this to run the ### lines
 #use Smart::Comments;
 
-our $VERSION = 3;
+our $VERSION = 4;
 
 use Glib::Object::Subclass
   'Gtk2::Menu',
@@ -88,7 +88,7 @@ sub _freshen {
   ###   menuview: "$menuview"
   my $model = $menuview && $menuview->{'model'};
   ###   model: "$model"
-  my $path = $model && $menu->get_path;
+  my $path = $model && $menu->_get_path;
   ###   path: ($path && $path->to_string)
 
   # $len can be fetched once from the model as item updates are not allowed
@@ -155,9 +155,9 @@ sub _get_menuview {
   return undef;
 }
 
-sub get_path {
+sub _get_path {
   my ($menu) = @_;
-  ### MenuView Menu get_path: $menu
+  ### MenuView Menu _get_path(): $menu
   if ($menu->isa('Gtk2::Ex::MenuView')) {
     ###   self
     return Gtk2::TreePath->new;  # empty path
@@ -168,22 +168,24 @@ sub get_path {
   };
   return ($menu->item_get_mmpi($item))[2];
 }
-sub get_mmpi {
-  my ($menu) = @_;
-  ### MenuView Menu get_mmpi: $menu
-  if ($menu->isa('Gtk2::Ex::MenuView')) {
-    ###   self
-    return ($menu,
-            $menu->{'model'},
-            Gtk2::TreePath->new,
-            undef);
-  }
-  my $item = $menu->get_attach_widget || do {
-    ###   oops, unattached menu
-    return undef;
-  };
-  return $menu->item_get_mmpi ($item);
-}
+
+# mmpi from the menu or submenu
+# sub get_mmpi {
+#   my ($menu) = @_;
+#   ### MenuView Menu get_mmpi: $menu
+#   if ($menu->isa('Gtk2::Ex::MenuView')) {
+#     ###   self
+#     return ($menu,
+#             $menu->{'model'},
+#             Gtk2::TreePath->new,
+#             undef);
+#   }
+#   my $item = $menu->get_attach_widget || do {
+#     ###   oops, unattached menu
+#     return undef;
+#   };
+#   return $menu->item_get_mmpi ($item);
+# }
 
 #------------------------------------------------------------------------------
 
@@ -201,15 +203,19 @@ sub _item_get_index {
   return undef;
 }
 
+sub item_get_path {
+  my ($class, $item) = @_;
+  return ($class->item_get_mmpi($item))[2];
+}
 sub item_get_mmpi {
-  my ($class_or_menu, $item) = @_;
-  ### Menu item_get_mmpi(): $item
+  my ($class, $item) = @_;
+  ### Menu item_get_mmpi(): "$item"
 
-  unless (ref $class_or_menu) {
-    my $menu = $item->get_parent || return;
-    ###   class method, recurse to menu: "$menu"
-    return $menu->item_get_mmpi ($item);
-  }
+  # unless (ref $class_or_menu) {
+  #   my $menu = $item->get_parent || return;
+  #   ###   class method, recurse to menu: "$menu"
+  #   return $menu->item_get_mmpi ($item);
+  # }
 
   my $path = Gtk2::TreePath->new;
   for (;;) {
@@ -217,7 +223,7 @@ sub item_get_mmpi {
       ###   oops, unattached item
       return;
     };
-    my $i = $menu->_item_get_index ($item);
+    my $i = _item_get_index ($menu, $item);
     if (! defined $i) {
       ###   oops, item not a child
       return;

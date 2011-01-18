@@ -1,6 +1,6 @@
 # MyMakeMakerExtra.pm -- my shared MakeMaker extras
 
-# Copyright 2009, 2010 Kevin Ryde
+# Copyright 2009, 2010, 2011 Kevin Ryde
 
 # MyMakeMakerExtras.pm is shared by several distributions.
 #
@@ -56,8 +56,10 @@ sub WriteMakefile {
     $my_options{$opt} = delete $opts{$opt};
   }
 
+  ### chain to WriteMakefile()
   ### %opts
   ExtUtils::MakeMaker::WriteMakefile (%opts);
+  ### done
 }
 
 sub strip_comments {
@@ -321,7 +323,7 @@ check-debug-constants:
 	if egrep -nH 'DEBUG => [1-9]|^[ \t]*use Smart::Comments' $(EXE_FILES) $(TO_INST_PM) t/*.t xt/*.t; then exit 1; else exit 0; fi
 
 check-spelling:
-	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[n]ote sure\b'; \
+	if find . -type f | egrep -v '(Makefile|dist-deb)' | xargs egrep --color=always -nHi '[c]usor|[r]efering|[w]riteable|[n]ineth|\b[o]mmitt?ed|[o]mited|[$$][rd]elf|[r]equrie|[n]oticable|[c]ontinous|[e]xistant|[e]xplict|[a]gument|[d]estionation|\b[t]he the\b|\b[n]ote sure\b'; \
 	then false; else true; fi
 
 diff-prev:
